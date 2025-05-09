@@ -16,21 +16,22 @@ public class TaskRepository : ICommonsProcess<Tareas>
         => await _context.Tarea.ToListAsync();
 
     public async Task<Tareas> GetIdAsync(int id)
-        => await _context.Tarea.FirstOrDefaultAsync(x=>x.Id ==id);
+        => await _context.Tarea.FirstOrDefaultAsync(x => x.Id == id);
 
     public async Task<(bool IsSuccess, string Message)> AddAsync(Tareas entry)
     {
-        try 
+        try
         {
             await _context.Tarea.AddAsync(entry);
             await _context.SaveChangesAsync();
-            return (true, "la tarea se guardo bien.");
 
+            Console.WriteLine($"ID generado: {entry.Id}");
+
+            return (true, "Tarea guardada");
         }
-
-        catch (Exception)
+        catch (Exception ex)
         {
-            return (false, "La tarea no se guardo");
+            return (false, $"Error: {ex.Message}");
         }
     }
 
@@ -77,6 +78,8 @@ public class TaskRepository : ICommonsProcess<Tareas>
         }
 
     }
+
+
 
 
 }

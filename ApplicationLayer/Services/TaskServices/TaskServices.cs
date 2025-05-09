@@ -26,8 +26,19 @@ namespace ApplicationLayer.Services.TaskServices
 
         private bool ValidacionPorDefecto(Tareas tarea)
         {
-            return !string.IsNullOrEmpty(tarea.Description)
-                && tarea.DueDate > DateTime.Now;
+            if (tarea == null)
+                return false;
+
+            if (string.IsNullOrEmpty(tarea.Description))
+                return false;
+
+            if (string.IsNullOrEmpty(tarea.Status))
+                return false;
+
+            if (tarea.DueDate == default)
+                return false;
+
+            return tarea.DueDate > DateTime.Now;
         }
 
         public async Task<Response<Tareas>> GetTaskAllAsync()
@@ -50,6 +61,14 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<Tareas>();
             try
             {
+                if (id <= 0)
+                {
+                    response.Message = "ID de tarea inválido";
+                    response.Errors.Add("El ID debe ser mayor que 0");
+                    response.Successful = false;
+                    return response;
+                }
+
                 var result = await _commonsProcess.GetIdAsync(id);
                 if (result != null)
                 {
@@ -77,9 +96,42 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<string>();
             try
             {
-                if (!Validador(tarea)) 
+                if (tarea == null)
+                {
+                    response.Message = "Error: Datos de tarea no proporcionados";
+                    response.Errors.Add("El objeto tarea no puede ser nulo");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (string.IsNullOrEmpty(tarea.Description))
+                {
+                    response.Message = "Error: Falta descripción";
+                    response.Errors.Add("La descripción es obligatoria");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (string.IsNullOrEmpty(tarea.Status))
+                {
+                    response.Message = "Error: Falta estado";
+                    response.Errors.Add("El estado es obligatorio");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (tarea.DueDate == default)
+                {
+                    response.Message = "Error: Falta fecha de vencimiento";
+                    response.Errors.Add("La fecha de vencimiento es obligatoria");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (!Validador(tarea))
                 {
                     response.Message = "Error: Validación fallida";
+                    response.Errors.Add("La tarea no cumple con los criterios de validación");
                     response.Successful = false;
                     return response;
                 }
@@ -102,9 +154,41 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<string>();
             try
             {
-                if (!Validador(tarea)) 
+                if (tarea == null)
+                {
+                    response.Message = "Error: Datos de tarea no proporcionados";
+                    response.Errors.Add("El objeto tarea no puede ser nulo");
+                    response.Successful = false;
+                    return response;
+                }
+                if (tarea.Id <= 0)
+                {
+                    response.Message = "Error: ID inválido";
+                    response.Errors.Add("El ID debe ser mayor que 0");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (string.IsNullOrEmpty(tarea.Description))
+                {
+                    response.Message = "Error: Falta descripción";
+                    response.Errors.Add("La descripción es obligatoria");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (string.IsNullOrEmpty(tarea.Status))
+                {
+                    response.Message = "Error: Falta estado";
+                    response.Errors.Add("El estado es obligatorio");
+                    response.Successful = false;
+                    return response;
+                }
+
+                if (!Validador(tarea))
                 {
                     response.Message = "Error: Validación fallida";
+                    response.Errors.Add("La tarea no cumple con los criterios de validación");
                     response.Successful = false;
                     return response;
                 }
@@ -125,6 +209,15 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<string>();
             try
             {
+                // Validación del ID
+                if (id <= 0)
+                {
+                    response.Message = "Error: ID inválido";
+                    response.Errors.Add("El ID debe ser mayor que 0");
+                    response.Successful = false;
+                    return response;
+                }
+
                 var result = await _commonsProcess.DeleteAsync(id);
                 if (result.IsSuccess)
                 {
@@ -145,6 +238,14 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<Tareas>();
             try
             {
+                if (filtro == null)
+                {
+                    response.Message = "Error: Filtro no proporcionado";
+                    response.Errors.Add("El filtro es obligatorio");
+                    response.Successful = false;
+                    return response;
+                }
+
                 var todas = await _commonsProcess.GetAllAsync();
                 response.DataList = todas.Where(filtro).ToList();
                 response.Successful = true;
