@@ -59,7 +59,7 @@ namespace WebApiTask.Controllers
         }
 
         [HttpGet("{id}")]
-        [ActionName("GetTaskById")]
+        [ActionName("GetTaskById")]z
         public async Task<ActionResult<Response<Tareas>>> GetTaskByIdAllAsync(int id)
         {
             if (id <= 0)
