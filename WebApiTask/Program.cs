@@ -1,3 +1,4 @@
+using ApplicationLayer.Factories;
 using ApplicationLayer.Services.TaskServices;
 using DomainLayer.Models;
 using InfrastuctureLayer;
@@ -16,6 +17,7 @@ builder.Services.AddDbContext<WebApiTaskContext>(options =>
 
 builder.Services.AddScoped<ICommonsProcess<Tareas>, TaskRepository>();
 builder.Services.AddScoped<TaskServices>();
+builder.Services.AddScoped<ITareaFactory, TareaFactory>();
 
 builder.Services.AddControllers();
 

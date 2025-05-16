@@ -1,4 +1,5 @@
-﻿using ApplicationLayer.Services.TaskServices;
+﻿using ApplicationLayer.Factories;
+using ApplicationLayer.Services.TaskServices;
 using DomainLayer.DTO;
 using DomainLayer.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -10,16 +11,14 @@ namespace WebApiTask.Controllers
     public class TareasController : ControllerBase
     {
         private readonly TaskServices _service;
+        private readonly ITareaFactory _factory;
 
-        public TareasController(TaskServices service)
+        public TareasController(TaskServices service, ITareaFactory factory)
         {
             _service = service;
+            _factory = factory;
 
-            _service.Validador = t =>
-            {
-                return t.Description?.Length >= 5 && t.DueDate > DateTime.Now;
-            };
-
+            _service.Validador = t => t.Description?.Length >= 5 && t.DueDate > DateTime.Now;
             _service.Notificador = mensaje => Console.WriteLine($"Notificación: {mensaje}");
         }
 
@@ -131,6 +130,21 @@ namespace WebApiTask.Controllers
             return CreatedAtAction("GetTaskById", new { id = tarea.Id }, response);
         }
 
+        [HttpPost("crear/alta")]
+        public async Task<ActionResult<Response<string>>> CrearTareaAlta([FromBody] string descripcion)
+        {
+            var tarea = _factory.CrearTareaAltaPrioridad(descripcion);
+            var response = await _service.AddTaskAllAsync(tarea);
+
+            if (!response.Successful && !response.ThrereIsError)
+                return BadRequest(response);
+
+            if (response.ThrereIsError)
+                return StatusCode(500, response);
+
+            return CreatedAtAction("GetTaskById", new { id = tarea.Id }, response);
+        }
+
         [HttpPut]
         public async Task<ActionResult<Response<string>>> UpdateTaskAllAsync(Tareas tarea)
         {
@@ -188,7 +202,6 @@ namespace WebApiTask.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult<Response<string>>> DeleteTaskAllAsync(int id)
         {
-          
             if (id <= 0)
             {
                 return BadRequest(new Response<string>
