@@ -1,5 +1,5 @@
-﻿using DomainLayer.DTO;
-using DomainLayer.Models;
+﻿using DomainLayer.Models;
+using DomainLayer.DTO;
 using InfrastuctureLayer.Repositorio.Commons;
 using System;
 using System.Collections.Generic;
@@ -14,30 +14,25 @@ namespace ApplicationLayer.Services.TaskServices
     {
         private readonly ICommonsProcess<Tareas> _commonsProcess;
         public ValidarTareaDelegate Validador { get; set; }
-        public Action<string> Notificador { get; set; }
+        public Action<string>? Notificador { get; set; }
 
         public TaskServices(
-            ICommonsProcess<Tareas> commonsProces,
-            ValidarTareaDelegate? validador = null)
+            ICommonsProcess<Tareas> commonsProcess,
+            ValidarTareaDelegate? validador = null,
+            Action<string>? notificador = null)
         {
-            _commonsProcess = commonsProces;
+            _commonsProcess = commonsProcess;
             Validador = validador ?? ValidacionPorDefecto;
+            Notificador = notificador;
         }
 
         private bool ValidacionPorDefecto(Tareas tarea)
         {
-            if (tarea == null)
+            if (tarea == null
+                || string.IsNullOrEmpty(tarea.Description)
+                || string.IsNullOrEmpty(tarea.Status)
+                || tarea.DueDate == default)
                 return false;
-
-            if (string.IsNullOrEmpty(tarea.Description))
-                return false;
-
-            if (string.IsNullOrEmpty(tarea.Status))
-                return false;
-
-            if (tarea.DueDate == default)
-                return false;
-
             return tarea.DueDate > DateTime.Now;
         }
 
@@ -74,9 +69,7 @@ namespace ApplicationLayer.Services.TaskServices
                 {
                     response.SingleData = result;
                     response.Successful = true;
-
-                    Func<Tareas, int> calcularDias = t => (t.DueDate - DateTime.Now).Days;
-                    response.CalculosExtra["DiasRestantes"] = calcularDias(result);
+                    response.CalculosExtra["DiasRestantes"] = (result.DueDate - DateTime.Now).Days;
                 }
                 else
                 {
@@ -138,7 +131,6 @@ namespace ApplicationLayer.Services.TaskServices
 
                 var result = await _commonsProcess.AddAsync(tarea);
                 Notificador?.Invoke($"Tarea creada: {tarea.Description}");
-
                 response.Message = result.Message;
                 response.Successful = result.IsSuccess;
             }
@@ -161,6 +153,7 @@ namespace ApplicationLayer.Services.TaskServices
                     response.Successful = false;
                     return response;
                 }
+
                 if (tarea.Id <= 0)
                 {
                     response.Message = "Error: ID inválido";
@@ -209,7 +202,6 @@ namespace ApplicationLayer.Services.TaskServices
             var response = new Response<string>();
             try
             {
-                // Validación del ID
                 if (id <= 0)
                 {
                     response.Message = "Error: ID inválido";
@@ -220,9 +212,7 @@ namespace ApplicationLayer.Services.TaskServices
 
                 var result = await _commonsProcess.DeleteAsync(id);
                 if (result.IsSuccess)
-                {
                     Notificador?.Invoke($"Tarea eliminada: ID {id}");
-                }
                 response.Message = result.Message;
                 response.Successful = result.IsSuccess;
             }

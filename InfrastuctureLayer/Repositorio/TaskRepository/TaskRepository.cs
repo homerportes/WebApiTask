@@ -1,85 +1,68 @@
 ﻿using DomainLayer.Models;
 using InfrastuctureLayer.Repositorio.Commons;
-using InfrastuctureLayer;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public class TaskRepository : ICommonsProcess<Tareas>
+namespace InfrastuctureLayer
 {
-    private readonly WebApiTaskContext _context;
-
-    public TaskRepository(WebApiTaskContext webApiTaskContext)
+    public class TaskRepository : ICommonsProcess<Tareas>
     {
-        _context = webApiTaskContext;
-    }
+        private readonly WebApiTaskContext _context;
 
-    public async Task<IEnumerable<Tareas>> GetAllAsync()
-        => await _context.Tarea.ToListAsync();
+        public TaskRepository(WebApiTaskContext webApiTaskContext)
+            => _context = webApiTaskContext;
 
-    public async Task<Tareas> GetIdAsync(int id)
-        => await _context.Tarea.FirstOrDefaultAsync(x => x.Id == id);
+        public async Task<IEnumerable<Tareas>> GetAllAsync()
+            => await _context.Tarea.ToListAsync();
 
-    public async Task<(bool IsSuccess, string Message)> AddAsync(Tareas entry)
-    {
-        try
+        public async Task<Tareas> GetIdAsync(int id)
+            => await _context.Tarea.FirstOrDefaultAsync(x => x.Id == id);
+
+        public async Task<(bool IsSuccess, string Message)> AddAsync(Tareas entry)
         {
-            await _context.Tarea.AddAsync(entry);
-            await _context.SaveChangesAsync();
-
-            Console.WriteLine($"ID generado: {entry.Id}");
-
-            return (true, "Tarea guardada");
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error: {ex.Message}");
-        }
-    }
-
-
-    public async Task<(bool IsSuccess, string Message)> UpdateAsync(Tareas entry)
-    {
-
-        try
-        {
-            _context.Tarea.Update(entry);
-            await _context.SaveChangesAsync();
-            return (true, "la tarea se actualizo bien.");
-
-        }
-
-        catch (Exception)
-        {
-            return (false, "La tarea no se actualizo");
-        }
-    }
-    public async Task<(bool IsSuccess, string Message)> DeleteAsync(int id)
-    {
-
-        try
-        {
-            var tarea = await _context.Tarea.FindAsync(id);
-
-            if (tarea != null)
+            try
             {
+                await _context.Tarea.AddAsync(entry);
+                await _context.SaveChangesAsync();
+                return (true, "Tarea guardada");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool IsSuccess, string Message)> UpdateAsync(Tareas entry)
+        {
+            try
+            {
+                _context.Tarea.Update(entry);
+                await _context.SaveChangesAsync();
+                return (true, "La tarea se actualizó correctamente");
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Error: {ex.Message}");
+            }
+        }
+
+        public async Task<(bool IsSuccess, string Message)> DeleteAsync(int id)
+        {
+            try
+            {
+                var tarea = await _context.Tarea.FindAsync(id);
+                if (tarea == null)
+                    return (false, "La tarea no existe");
                 _context.Tarea.Remove(tarea);
                 await _context.SaveChangesAsync();
-                return (true, "la tarea se elimino bien.");
+                return (true, "La tarea se eliminó correctamente");
             }
-
-            else
+            catch (Exception ex)
             {
-                return (false, "la tarea no existe.");
+                return (false, $"Error: {ex.Message}");
             }
         }
-
-        catch (Exception)
-        {
-            return (false, "La tarea no se elimino");
-        }
-
     }
-
-
-
-
 }

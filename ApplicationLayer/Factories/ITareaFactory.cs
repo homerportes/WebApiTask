@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 
 namespace ApplicationLayer.Factories
 {
-    class ITareaFactory
+    using DomainLayer.Models;
+
+    public interface ITareaFactory
     {
+        Tareas CrearTareaAltaPrioridad(string descripcion);
+        Tareas CrearTareaNormal(string descripcion);
     }
 }
