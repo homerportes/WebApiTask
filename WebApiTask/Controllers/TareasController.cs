@@ -1,8 +1,7 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using ApplicationLayer.Factories;
 using ApplicationLayer.Services.TaskServices;
+using ApplicationLayer.Factories;
 using ApplicationLayer.Services.Reactive;
 using DomainLayer.DTO;
 using DomainLayer.Models;
@@ -26,8 +25,8 @@ namespace WebApiTask.Controllers
             _factory = factory;
             _queue = queue;
 
-            _service.Validador = t => t.Description.Length >= 5 && t.DueDate > DateTime.Now;
-            _service.Notificador = msg => Console.WriteLine($"Notificación: {msg}");
+            _service.Validador = t => t.Description.Length >= 5 && t.DueDate > System.DateTime.Now;
+            _service.Notificador = msg => System.Console.WriteLine($"Notificación: {msg}");
         }
 
         [HttpGet("filtrar")]
@@ -40,7 +39,7 @@ namespace WebApiTask.Controllers
                     Successful = false
                 });
 
-            var response = await _service.FiltrarTareas(t => t.Status == estado);
+            var response = await _service.FiltrarTareasPorEstado(estado);
             if (response.ThrereIsError)
                 return BadRequest(response);
 

@@ -13,8 +13,11 @@ namespace ApplicationLayer.Services.TaskServices
     public class TaskServices
     {
         private readonly ICommonsProcess<Tareas> _commonsProcess;
+
         public ValidarTareaDelegate Validador { get; set; }
         public Action<string>? Notificador { get; set; }
+
+        private readonly Dictionary<string, IEnumerable<Tareas>> _filtroCache = new Dictionary<string, IEnumerable<Tareas>>();
 
         public TaskServices(
             ICommonsProcess<Tareas> commonsProcess,
@@ -47,6 +50,7 @@ namespace ApplicationLayer.Services.TaskServices
             catch (Exception e)
             {
                 response.Errors.Add(e.Message);
+                response.Successful = false;
             }
             return response;
         }
@@ -80,8 +84,46 @@ namespace ApplicationLayer.Services.TaskServices
             catch (Exception e)
             {
                 response.Errors.Add(e.Message);
+                response.Successful = false;
             }
             return response;
+        }
+
+        public async Task<Response<Tareas>> FiltrarTareasPorEstado(string estado)
+        {
+            var response = new Response<Tareas>();
+            if (string.IsNullOrEmpty(estado))
+            {
+                response.Message = "Error: El parámetro 'estado' es obligatorio";
+                response.Errors.Add("El estado no puede estar vacío");
+                response.Successful = false;
+                return response;
+            }
+
+            try
+            {
+                string clave = $"Status:{estado}";
+
+                if (_filtroCache.ContainsKey(clave))
+                {
+                    response.DataList = _filtroCache[clave];
+                    response.Successful = true;
+                    return response;
+                }
+
+                var todas = await _commonsProcess.GetAllAsync();
+                var filtradas = todas.Where(t => t.Status == estado).ToList();
+                _filtroCache[clave] = filtradas;
+                response.DataList = filtradas;
+                response.Successful = true;
+                return response;
+            }
+            catch (Exception e)
+            {
+                response.Errors.Add(e.Message);
+                response.Successful = false;
+                return response;
+            }
         }
 
         public async Task<Response<string>> AddTaskAllAsync(Tareas tarea)
@@ -133,10 +175,13 @@ namespace ApplicationLayer.Services.TaskServices
                 Notificador?.Invoke($"Tarea creada: {tarea.Description}");
                 response.Message = result.Message;
                 response.Successful = result.IsSuccess;
+
+                _filtroCache.Clear();
             }
             catch (Exception e)
             {
                 response.Errors.Add(e.Message);
+                response.Successful = false;
             }
             return response;
         }
@@ -189,10 +234,13 @@ namespace ApplicationLayer.Services.TaskServices
                 var result = await _commonsProcess.UpdateAsync(tarea);
                 response.Message = result.Message;
                 response.Successful = result.IsSuccess;
+
+                _filtroCache.Clear();
             }
             catch (Exception e)
             {
                 response.Errors.Add(e.Message);
+                response.Successful = false;
             }
             return response;
         }
@@ -215,34 +263,13 @@ namespace ApplicationLayer.Services.TaskServices
                     Notificador?.Invoke($"Tarea eliminada: ID {id}");
                 response.Message = result.Message;
                 response.Successful = result.IsSuccess;
+
+                _filtroCache.Clear();
             }
             catch (Exception e)
             {
                 response.Errors.Add(e.Message);
-            }
-            return response;
-        }
-
-        public async Task<Response<Tareas>> FiltrarTareas(Func<Tareas, bool> filtro)
-        {
-            var response = new Response<Tareas>();
-            try
-            {
-                if (filtro == null)
-                {
-                    response.Message = "Error: Filtro no proporcionado";
-                    response.Errors.Add("El filtro es obligatorio");
-                    response.Successful = false;
-                    return response;
-                }
-
-                var todas = await _commonsProcess.GetAllAsync();
-                response.DataList = todas.Where(filtro).ToList();
-                response.Successful = true;
-            }
-            catch (Exception e)
-            {
-                response.Errors.Add(e.Message);
+                response.Successful = false;
             }
             return response;
         }
