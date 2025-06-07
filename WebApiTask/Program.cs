@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using DomainLayer.Models;
 using InfrastuctureLayer;
 using InfrastuctureLayer.Repositorio.Commons;
@@ -11,11 +12,14 @@ using ApplicationLayer.Factories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 builder.Services.AddDbContext<WebApiTaskContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("TaskManagerDB")));
 
 builder.Services.AddScoped<ICommonsProcess<Tareas>, TaskRepository>();
-builder.Services.AddScoped<TaskServices>();
+builder.Services.AddScoped<ITaskServices, TaskServices>();
 builder.Services.AddSingleton<IReactiveTaskQueueService, ReactiveTaskQueueService>();
 builder.Services.AddScoped<ITareaFactory, TareaFactory>();
 
@@ -27,8 +31,8 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<WebApiTaskContext>();
-    context.Database.Migrate();
+    var ctx = scope.ServiceProvider.GetRequiredService<WebApiTaskContext>();
+    ctx.Database.Migrate();
 }
 
 if (app.Environment.IsDevelopment())

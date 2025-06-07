@@ -1,277 +1,171 @@
-﻿using DomainLayer.Models;
-using DomainLayer.DTO;
-using InfrastuctureLayer.Repositorio.Commons;
-using System;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DomainLayer.DTO;
+using DomainLayer.Models;
+using InfrastuctureLayer.Repositorio.Commons;
+using Microsoft.Extensions.Logging;
 
 namespace ApplicationLayer.Services.TaskServices
 {
-    public delegate bool ValidarTareaDelegate(Tareas tarea);
+    public delegate bool ValidarTareaDelegate(Tareas t);
 
-    public class TaskServices
+    public class TaskServices : ITaskServices
     {
-        private readonly ICommonsProcess<Tareas> _commonsProcess;
+        private readonly ICommonsProcess<Tareas> _repo;
+        private readonly ILogger<TaskServices> _logger;
+        private readonly ConcurrentDictionary<string, IEnumerable<Tareas>> _cache = new();
 
         public ValidarTareaDelegate Validador { get; set; }
         public Action<string>? Notificador { get; set; }
 
-        private readonly Dictionary<string, IEnumerable<Tareas>> _filtroCache = new Dictionary<string, IEnumerable<Tareas>>();
-
         public TaskServices(
-            ICommonsProcess<Tareas> commonsProcess,
-            ValidarTareaDelegate? validador = null,
-            Action<string>? notificador = null)
+            ICommonsProcess<Tareas> repo,
+            ILogger<TaskServices> logger)
         {
-            _commonsProcess = commonsProcess;
-            Validador = validador ?? ValidacionPorDefecto;
-            Notificador = notificador;
+            _repo = repo;
+            _logger = logger;
+            Validador = ValidacionPorDefecto;
         }
 
-        private bool ValidacionPorDefecto(Tareas tarea)
-        {
-            if (tarea == null
-                || string.IsNullOrEmpty(tarea.Description)
-                || string.IsNullOrEmpty(tarea.Status)
-                || tarea.DueDate == default)
-                return false;
-            return tarea.DueDate > DateTime.Now;
-        }
+        private bool ValidacionPorDefecto(Tareas t) =>
+            !(t is null) &&
+            !string.IsNullOrWhiteSpace(t.Description) &&
+            !string.IsNullOrWhiteSpace(t.Status) &&
+            t.DueDate > DateTime.Now;
+
 
         public async Task<Response<Tareas>> GetTaskAllAsync()
         {
-            var response = new Response<Tareas>();
+            var res = new Response<Tareas>();
             try
             {
-                response.DataList = await _commonsProcess.GetAllAsync();
-                response.Successful = true;
+                res.DataList = await _repo.GetAllAsync();
+                res.Successful = true;
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
+                _logger.LogError(ex, "GetTaskAllAsync error");
+                res.Errors.Add(ex.Message);
             }
-            return response;
+            return res;
         }
 
         public async Task<Response<Tareas>> GetTaskByIdAllAsync(int id)
         {
-            var response = new Response<Tareas>();
+            var res = new Response<Tareas>();
+            if (id <= 0)
+            {
+                res.Errors.Add("ID inválido"); return res;
+            }
+
             try
             {
-                if (id <= 0)
-                {
-                    response.Message = "ID de tarea inválido";
-                    response.Errors.Add("El ID debe ser mayor que 0");
-                    response.Successful = false;
-                    return response;
-                }
-
-                var result = await _commonsProcess.GetIdAsync(id);
-                if (result != null)
-                {
-                    response.SingleData = result;
-                    response.Successful = true;
-                    response.CalculosExtra["DiasRestantes"] = (result.DueDate - DateTime.Now).Days;
-                }
-                else
-                {
-                    response.Message = "Tarea no encontrada";
-                    response.Successful = false;
-                }
+                var t = await _repo.GetIdAsync(id);
+                res.SingleData = t;
+                res.Successful = t != null;
+                if (t == null) res.Message = "Tarea no encontrada";
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
+                _logger.LogError(ex, "GetTaskById error");
+                res.Errors.Add(ex.Message);
             }
-            return response;
+            return res;
         }
 
         public async Task<Response<Tareas>> FiltrarTareasPorEstado(string estado)
         {
-            var response = new Response<Tareas>();
-            if (string.IsNullOrEmpty(estado))
+            var res = new Response<Tareas>();
+            if (string.IsNullOrWhiteSpace(estado))
             {
-                response.Message = "Error: El parámetro 'estado' es obligatorio";
-                response.Errors.Add("El estado no puede estar vacío");
-                response.Successful = false;
-                return response;
+                res.Errors.Add("Estado obligatorio"); return res;
             }
 
             try
             {
-                string clave = $"Status:{estado}";
-
-                if (_filtroCache.ContainsKey(clave))
+                if (_cache.TryGetValue(estado, out var cached))
                 {
-                    response.DataList = _filtroCache[clave];
-                    response.Successful = true;
-                    return response;
+                    res.DataList = cached; res.Successful = true; return res;
                 }
 
-                var todas = await _commonsProcess.GetAllAsync();
-                var filtradas = todas.Where(t => t.Status == estado).ToList();
-                _filtroCache[clave] = filtradas;
-                response.DataList = filtradas;
-                response.Successful = true;
-                return response;
+                var all = await _repo.GetAllAsync();
+                var filt = all.Where(t => t.Status == estado).ToList();
+                _cache[estado] = filt;
+                res.DataList = filt;
+                res.Successful = true;
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
-                return response;
+                _logger.LogError(ex, "Filtrar error");
+                res.Errors.Add(ex.Message);
             }
+            return res;
         }
 
-        public async Task<Response<string>> AddTaskAllAsync(Tareas tarea)
-        {
-            var response = new Response<string>();
-            try
-            {
-                if (tarea == null)
-                {
-                    response.Message = "Error: Datos de tarea no proporcionados";
-                    response.Errors.Add("El objeto tarea no puede ser nulo");
-                    response.Successful = false;
-                    return response;
-                }
+        public async Task<Response<string>> AddTaskAllAsync(Tareas t) =>
+            await ProcesarCrud(async () => await _repo.AddAsync(t), t, "Add");
 
-                if (string.IsNullOrEmpty(tarea.Description))
-                {
-                    response.Message = "Error: Falta descripción";
-                    response.Errors.Add("La descripción es obligatoria");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (string.IsNullOrEmpty(tarea.Status))
-                {
-                    response.Message = "Error: Falta estado";
-                    response.Errors.Add("El estado es obligatorio");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (tarea.DueDate == default)
-                {
-                    response.Message = "Error: Falta fecha de vencimiento";
-                    response.Errors.Add("La fecha de vencimiento es obligatoria");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (!Validador(tarea))
-                {
-                    response.Message = "Error: Validación fallida";
-                    response.Errors.Add("La tarea no cumple con los criterios de validación");
-                    response.Successful = false;
-                    return response;
-                }
-
-                var result = await _commonsProcess.AddAsync(tarea);
-                Notificador?.Invoke($"Tarea creada: {tarea.Description}");
-                response.Message = result.Message;
-                response.Successful = result.IsSuccess;
-
-                _filtroCache.Clear();
-            }
-            catch (Exception e)
-            {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
-            }
-            return response;
-        }
-
-        public async Task<Response<string>> UpdateTaskAllAsync(Tareas tarea)
-        {
-            var response = new Response<string>();
-            try
-            {
-                if (tarea == null)
-                {
-                    response.Message = "Error: Datos de tarea no proporcionados";
-                    response.Errors.Add("El objeto tarea no puede ser nulo");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (tarea.Id <= 0)
-                {
-                    response.Message = "Error: ID inválido";
-                    response.Errors.Add("El ID debe ser mayor que 0");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (string.IsNullOrEmpty(tarea.Description))
-                {
-                    response.Message = "Error: Falta descripción";
-                    response.Errors.Add("La descripción es obligatoria");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (string.IsNullOrEmpty(tarea.Status))
-                {
-                    response.Message = "Error: Falta estado";
-                    response.Errors.Add("El estado es obligatorio");
-                    response.Successful = false;
-                    return response;
-                }
-
-                if (!Validador(tarea))
-                {
-                    response.Message = "Error: Validación fallida";
-                    response.Errors.Add("La tarea no cumple con los criterios de validación");
-                    response.Successful = false;
-                    return response;
-                }
-
-                var result = await _commonsProcess.UpdateAsync(tarea);
-                response.Message = result.Message;
-                response.Successful = result.IsSuccess;
-
-                _filtroCache.Clear();
-            }
-            catch (Exception e)
-            {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
-            }
-            return response;
-        }
+        public async Task<Response<string>> UpdateTaskAllAsync(Tareas t) =>
+            await ProcesarCrud(async () => await _repo.UpdateAsync(t), t, "Update");
 
         public async Task<Response<string>> DeleteTaskAllAsync(int id)
         {
-            var response = new Response<string>();
+            var res = new Response<string>();
             try
             {
-                if (id <= 0)
-                {
-                    response.Message = "Error: ID inválido";
-                    response.Errors.Add("El ID debe ser mayor que 0");
-                    response.Successful = false;
-                    return response;
-                }
-
-                var result = await _commonsProcess.DeleteAsync(id);
-                if (result.IsSuccess)
-                    Notificador?.Invoke($"Tarea eliminada: ID {id}");
-                response.Message = result.Message;
-                response.Successful = result.IsSuccess;
-
-                _filtroCache.Clear();
+                var result = await _repo.DeleteAsync(id);
+                res.Successful = result.IsSuccess;
+                res.Message = result.Message;
+                if (!result.IsSuccess) _logger.LogWarning("Delete fail: {Msg}", result.Message);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                response.Errors.Add(e.Message);
-                response.Successful = false;
+                _logger.LogError(ex, "Delete error");
+                res.Errors.Add(ex.Message);
             }
-            return response;
+            _cache.Clear();
+            return res;
+        }
+
+        private async Task<Response<string>> ProcesarCrud(
+            Func<Task<(bool IsSuccess, string Message)>> op,
+            Tareas t, string tag)
+        {
+            var res = new Response<string>();
+
+            if (!Validador(t))
+            {
+                res.Errors.Add("Validación fallida");
+                _logger.LogWarning("{Tag}: invalid task data", tag);
+                return res;
+            }
+
+            try
+            {
+                var result = await op();
+                res.Successful = result.IsSuccess;
+                res.Message = result.Message;
+
+                if (result.IsSuccess)
+                {
+                    Notificador?.Invoke($"{tag}: {t.Description}");
+                    _logger.LogInformation("{Tag}: OK - {Desc}", tag, t.Description);
+                }
+                else
+                {
+                    _logger.LogWarning("{Tag} repo fail: {Msg}", tag, result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{Tag} error", tag);
+                res.Errors.Add(ex.Message);
+            }
+            _cache.Clear();
+            return res;
         }
     }
 }

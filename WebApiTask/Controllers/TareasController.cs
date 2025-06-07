@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using ApplicationLayer.Services.TaskServices;
 using ApplicationLayer.Factories;
 using ApplicationLayer.Services.Reactive;
@@ -8,205 +9,124 @@ using DomainLayer.Models;
 
 namespace WebApiTask.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class TareasController : ControllerBase
     {
-        private readonly TaskServices _service;
+        private readonly ITaskServices _svc;
         private readonly ITareaFactory _factory;
         private readonly IReactiveTaskQueueService _queue;
+        private readonly ILogger<TareasController> _log;
 
         public TareasController(
-            TaskServices service,
+            ITaskServices svc,
             ITareaFactory factory,
-            IReactiveTaskQueueService queue)
+            IReactiveTaskQueueService queue,
+            ILogger<TareasController> log)
         {
-            _service = service;
+            _svc = svc;
             _factory = factory;
             _queue = queue;
-
-            _service.Validador = t => t.Description.Length >= 5 && t.DueDate > System.DateTime.Now;
-            _service.Notificador = msg => System.Console.WriteLine($"Notificación: {msg}");
-        }
-
-        [HttpGet("filtrar")]
-        public async Task<ActionResult<Response<Tareas>>> Filtrar([FromQuery] string estado)
-        {
-            if (string.IsNullOrEmpty(estado))
-                return BadRequest(new Response<Tareas>
-                {
-                    Message = "El parámetro 'estado' es obligatorio",
-                    Successful = false
-                });
-
-            var response = await _service.FiltrarTareasPorEstado(estado);
-            if (response.ThrereIsError)
-                return BadRequest(response);
-
-            return Ok(response);
-        }
-
-        [HttpGet]
-        public async Task<ActionResult<Response<Tareas>>> GetTaskAllAsync()
-        {
-            var response = await _service.GetTaskAllAsync();
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-            return Ok(response);
-        }
-
-        [HttpGet("{id}")]
-        [ActionName("GetTaskById")]
-        public async Task<ActionResult<Response<Tareas>>> GetTaskByIdAllAsync(int id)
-        {
-            if (id <= 0)
-                return BadRequest(new Response<Tareas>
-                {
-                    Message = "El ID debe ser mayor que 0",
-                    Successful = false
-                });
-
-            var response = await _service.GetTaskByIdAllAsync(id);
-            if (!response.Successful && !response.ThrereIsError)
-                return NotFound(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return Ok(response);
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<Response<string>>> AddTaskAllAsync([FromBody] Tareas tarea)
-        {
-            if (tarea == null)
-                return BadRequest(new Response<string>
-                {
-                    Message = "Los datos de la tarea son obligatorios",
-                    Successful = false
-                });
-            if (string.IsNullOrEmpty(tarea.Description))
-                return BadRequest(new Response<string>
-                {
-                    Message = "La descripción es obligatoria",
-                    Successful = false
-                });
-            if (string.IsNullOrEmpty(tarea.Status))
-                return BadRequest(new Response<string>
-                {
-                    Message = "El estado es obligatorio",
-                    Successful = false
-                });
-
-            var response = await _service.AddTaskAllAsync(tarea);
-            if (!response.Successful && !response.ThrereIsError)
-                return BadRequest(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return CreatedAtAction("GetTaskById", new { id = tarea.Id }, response);
-        }
-
-        [HttpPost("crear/alta")]
-        public async Task<ActionResult<Response<string>>> CrearTareaAlta([FromBody] string descripcion)
-        {
-            var tarea = _factory.CrearTareaAltaPrioridad(descripcion);
-            var response = await _service.AddTaskAllAsync(tarea);
-            if (!response.Successful && !response.ThrereIsError)
-                return BadRequest(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return CreatedAtAction("GetTaskById", new { id = tarea.Id }, response);
-        }
-
-        [HttpPost("crear/normal")]
-        public async Task<ActionResult<Response<string>>> CrearTareaNormal([FromBody] string descripcion)
-        {
-            var tarea = _factory.CrearTareaNormal(descripcion);
-            var response = await _service.AddTaskAllAsync(tarea);
-            if (!response.Successful && !response.ThrereIsError)
-                return BadRequest(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return CreatedAtAction("GetTaskById", new { id = tarea.Id }, response);
-        }
-
-        [HttpPut]
-        public async Task<ActionResult<Response<string>>> UpdateTaskAllAsync([FromBody] Tareas tarea)
-        {
-            if (tarea == null)
-                return BadRequest(new Response<string>
-                {
-                    Message = "Los datos de la tarea son obligatorios",
-                    Successful = false
-                });
-            if (tarea.Id <= 0)
-                return BadRequest(new Response<string>
-                {
-                    Message = "El ID debe ser mayor que 0",
-                    Successful = false
-                });
-            if (string.IsNullOrEmpty(tarea.Description))
-                return BadRequest(new Response<string>
-                {
-                    Message = "La descripción es obligatoria",
-                    Successful = false
-                });
-            if (string.IsNullOrEmpty(tarea.Status))
-                return BadRequest(new Response<string>
-                {
-                    Message = "El estado es obligatorio",
-                    Successful = false
-                });
-
-            var response = await _service.UpdateTaskAllAsync(tarea);
-            if (!response.Successful && !response.ThrereIsError)
-                return BadRequest(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return Ok(response);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<ActionResult<Response<string>>> DeleteTaskAllAsync(int id)
-        {
-            if (id <= 0)
-                return BadRequest(new Response<string>
-                {
-                    Message = "El ID debe ser mayor que 0",
-                    Successful = false
-                });
-
-            var response = await _service.DeleteTaskAllAsync(id);
-            if (!response.Successful && response.Message.Contains("no existe"))
-                return NotFound(response);
-            if (response.ThrereIsError)
-                return StatusCode(500, response);
-
-            return Ok(response);
+            _log = log;
         }
 
         [HttpPost("queue/create")]
-        public ActionResult QueueCreate([FromBody] Tareas tarea)
+        public IActionResult QueueCreate([FromBody] Tareas t)
         {
-            _queue.EnqueueCreate(tarea);
+            _queue.EnqueueCreate(t);
+            _log.LogInformation("Enqueued CREATE {Desc}", t.Description);
             return Accepted();
         }
 
         [HttpPost("queue/update")]
-        public ActionResult QueueUpdate([FromBody] Tareas tarea)
+        public IActionResult QueueUpdate([FromBody] Tareas t)
         {
-            _queue.EnqueueUpdate(tarea);
+            _queue.EnqueueUpdate(t);
+            _log.LogInformation("Enqueued UPDATE {Id}", t.Id);
             return Accepted();
         }
 
-        [HttpPost("queue/delete/{id}")]
-        public ActionResult QueueDelete(int id)
+        [HttpPost("queue/delete/{id:int}")]
+        public IActionResult QueueDelete(int id)
         {
             _queue.EnqueueDelete(id);
+            _log.LogInformation("Enqueued DELETE {Id}", id);
             return Accepted();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> All()
+        {
+            var r = await _svc.GetTaskAllAsync();
+            return r.HasError ? StatusCode(500, r) : Ok(r);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> ById(int id)
+        {
+            var r = await _svc.GetTaskByIdAllAsync(id);
+            if (r.HasError) return StatusCode(500, r);
+            return r.Successful ? Ok(r) : NotFound(r);
+        }
+
+        [HttpGet("filtrar")]
+        public async Task<IActionResult> Filtrar([FromQuery] string estado)
+        {
+            var r = await _svc.FiltrarTareasPorEstado(estado);
+            if (r.HasError) return StatusCode(500, r);
+            return r.Successful ? Ok(r) : BadRequest(r);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] Tareas t)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var r = await _svc.AddTaskAllAsync(t);
+            if (r.HasError) return StatusCode(500, r);
+            if (!r.Successful) return BadRequest(r);
+
+            return CreatedAtAction(nameof(ById), new { id = t.Id }, r);
+        }
+
+        [HttpPost("crear/alta")]
+        public async Task<IActionResult> Alta([FromBody] string descripcion)
+        {
+            var tarea = _factory.CrearTareaAltaPrioridad(descripcion);
+            var r = await _svc.AddTaskAllAsync(tarea);
+            if (r.HasError) return StatusCode(500, r);
+            if (!r.Successful) return BadRequest(r);
+
+            return CreatedAtAction(nameof(ById), new { id = tarea.Id }, r);
+        }
+
+        [HttpPost("crear/normal")]
+        public async Task<IActionResult> Normal([FromBody] string descripcion)
+        {
+            var tarea = _factory.CrearTareaNormal(descripcion);
+            var r = await _svc.AddTaskAllAsync(tarea);
+            if (r.HasError) return StatusCode(500, r);
+            if (!r.Successful) return BadRequest(r);
+
+            return CreatedAtAction(nameof(ById), new { id = tarea.Id }, r);
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> Update([FromBody] Tareas t)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var r = await _svc.UpdateTaskAllAsync(t);
+            if (r.HasError) return StatusCode(500, r);
+            return r.Successful ? Ok(r) : BadRequest(r);
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var r = await _svc.DeleteTaskAllAsync(id);
+            if (r.HasError) return StatusCode(500, r);
+            return r.Successful ? Ok(r) : NotFound(r);
         }
     }
 }

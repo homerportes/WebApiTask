@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace DomainLayer.DTO
 {
-    using System.Collections.Generic;
-    using System.Linq;
-
     public class Response
     {
-        public bool ThrereIsError => Errors.Any();
+        public bool HasError => Errors.Any();
+
         public long EntityId { get; set; }
         public bool Successful { get; set; }
         public string Message { get; set; } = string.Empty;
@@ -20,6 +17,6 @@ namespace DomainLayer.DTO
     {
         public IEnumerable<T> DataList { get; set; } = Enumerable.Empty<T>();
         public T? SingleData { get; set; }
-        public Dictionary<string, object> CalculosExtra { get; set; } = new();
+        public Dictionary<string, object> Extra { get; set; } = new();
     }
 }

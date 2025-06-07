@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace InfrastuctureLayer.Repositorio.Commons
 {
-    using System.Collections.Generic;
-    using System.Threading.Tasks;
-
     public interface ICommonsProcess<T> where T : class
     {
         Task<IEnumerable<T>> GetAllAsync();
-        Task<T> GetIdAsync(int id);
+        Task<T?> GetIdAsync(int id);   
         Task<(bool IsSuccess, string Message)> AddAsync(T entry);
         Task<(bool IsSuccess, string Message)> UpdateAsync(T entry);
         Task<(bool IsSuccess, string Message)> DeleteAsync(int id);
