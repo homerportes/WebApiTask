@@ -35,7 +35,7 @@ namespace WebApiTask.Controllers
         {
             _queue.EnqueueCreate(t);
             _log.LogInformation("Enqueued CREATE {Desc}", t.Description);
-            return Accepted();
+            return Ok(new { message = "Task queued" });
         }
 
         [HttpPost("queue/update")]
@@ -43,7 +43,7 @@ namespace WebApiTask.Controllers
         {
             _queue.EnqueueUpdate(t);
             _log.LogInformation("Enqueued UPDATE {Id}", t.Id);
-            return Accepted();
+            return Ok(new { message = "Task queued" });
         }
 
         [HttpPost("queue/delete/{id:int}")]
@@ -51,7 +51,7 @@ namespace WebApiTask.Controllers
         {
             _queue.EnqueueDelete(id);
             _log.LogInformation("Enqueued DELETE {Id}", id);
-            return Accepted();
+            return Ok(new { message = "Task queued" });
         }
 
         [HttpGet]
