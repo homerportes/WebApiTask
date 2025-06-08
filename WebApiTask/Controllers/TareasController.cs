@@ -6,11 +6,16 @@ using ApplicationLayer.Factories;
 using ApplicationLayer.Services.Reactive;
 using DomainLayer.DTO;
 using DomainLayer.Models;
+using ApplicationLayer.Services.Auth.Dto;
+using WebApiTask.Auth.Dto;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace WebApiTask.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class TareasController : ControllerBase
     {
         private readonly ITaskServices _svc;
@@ -29,6 +34,8 @@ namespace WebApiTask.Controllers
             _queue = queue;
             _log = log;
         }
+
+
 
         [HttpPost("queue/create")]
         public IActionResult QueueCreate([FromBody] Tareas t)

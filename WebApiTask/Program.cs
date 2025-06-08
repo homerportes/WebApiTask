@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +13,7 @@ using InfrastuctureLayer.Repositorio.Commons;
 using ApplicationLayer.Services.TaskServices;
 using ApplicationLayer.Services.Reactive;
 using ApplicationLayer.Factories;
+using ApplicationLayer.Services.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,17 +28,68 @@ builder.Services.AddScoped<ITaskServices, TaskServices>();
 builder.Services.AddSingleton<IReactiveTaskQueueService, ReactiveTaskQueueService>();
 builder.Services.AddScoped<ITareaFactory, TareaFactory>();
 
+builder.Services.AddScoped<IJwtAuthService, JwtAuthService>();
+
+var jwt = builder.Configuration.GetSection("Jwt");
+var key = Encoding.UTF8.GetBytes(jwt["Key"]!);
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opt =>
+    {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidIssuer = jwt["Issuer"],
+            ValidAudience = jwt["Audience"]
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(opt =>
+{
+    opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese 'Bearer {token}'"
+    });
+    opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id   = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
 
 var app = builder.Build();
+
 
 using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<WebApiTaskContext>();
     ctx.Database.Migrate();
 }
+
 
 if (app.Environment.IsDevelopment())
 {
@@ -42,6 +98,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 app.Run();
