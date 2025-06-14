@@ -7,6 +7,7 @@ using DomainLayer.DTO;
 using DomainLayer.Models;
 using InfrastuctureLayer.Repositorio.Commons;
 using Microsoft.Extensions.Logging;
+using ApplicationLayer.Services.Notifications;
 
 namespace ApplicationLayer.Services.TaskServices
 {
@@ -17,18 +18,21 @@ namespace ApplicationLayer.Services.TaskServices
         private readonly ICommonsProcess<Tareas> _repo;
         private readonly ILogger<TaskServices> _logger;
         private readonly ConcurrentDictionary<string, IEnumerable<Tareas>> _cache = new();
+        private readonly ITaskNotificationService _notifier;
 
         public ValidarTareaDelegate Validador { get; set; }
-        public Action<string>? Notificador { get; set; }
 
         public TaskServices(
             ICommonsProcess<Tareas> repo,
-            ILogger<TaskServices> logger)
+            ILogger<TaskServices> logger,
+            ITaskNotificationService notifier)
         {
             _repo = repo;
             _logger = logger;
+            _notifier = notifier;
             Validador = ValidacionPorDefecto;
         }
+
 
         private bool ValidacionPorDefecto(Tareas t) =>
             !(t is null) &&
@@ -105,8 +109,15 @@ namespace ApplicationLayer.Services.TaskServices
             return res;
         }
 
-        public async Task<Response<string>> AddTaskAllAsync(Tareas t) =>
-            await ProcesarCrud(async () => await _repo.AddAsync(t), t, "Add");
+        public async Task<Response<string>> AddTaskAllAsync(Tareas t)
+        {
+            var res = await ProcesarCrud(async () => await _repo.AddAsync(t), t, "Add");
+            if (res.Successful)
+            {
+                await _notifier.NotifyTaskCreatedAsync(t);
+            }
+            return res;
+        }
 
         public async Task<Response<string>> UpdateTaskAllAsync(Tareas t) =>
             await ProcesarCrud(async () => await _repo.UpdateAsync(t), t, "Update");
@@ -151,7 +162,6 @@ namespace ApplicationLayer.Services.TaskServices
 
                 if (result.IsSuccess)
                 {
-                    Notificador?.Invoke($"{tag}: {t.Description}");
                     _logger.LogInformation("{Tag}: OK - {Desc}", tag, t.Description);
                 }
                 else

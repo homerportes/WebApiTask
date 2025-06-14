@@ -14,6 +14,11 @@ using ApplicationLayer.Services.TaskServices;
 using ApplicationLayer.Services.Reactive;
 using ApplicationLayer.Factories;
 using ApplicationLayer.Services.Auth;
+using ApplicationLayer.Services.Notifications;
+using WebApiTask.Services;
+using Microsoft.AspNetCore.SignalR;
+using WebApiTask.Hubs;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +29,9 @@ builder.Services.AddDbContext<WebApiTaskContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("TaskManagerDB")));
 
 builder.Services.AddScoped<ICommonsProcess<Tareas>, TaskRepository>();
+builder.Services.AddSignalR();
+
+builder.Services.AddScoped<ITaskNotificationService, SignalRTaskNotificationService>();
 builder.Services.AddScoped<ITaskServices, TaskServices>();
 builder.Services.AddSingleton<IReactiveTaskQueueService, ReactiveTaskQueueService>();
 builder.Services.AddScoped<ITareaFactory, TareaFactory>();
@@ -103,4 +111,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<TaskHub>("/taskhub");
 app.Run();
