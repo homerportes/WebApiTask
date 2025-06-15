@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Notificación de tareas</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f2f4f7;
+            --card: #fff;
+            --txt: #222;
+            --accent: #16a34a;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1e1e1e;
+                --card: #262626;
+                --txt: #eee;
+                --accent: #4ade80;
+            }
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui,sans-serif;
+            background: var(--bg);
+            display: grid;
+            place-content: center;
+            height: 100vh;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgb(0 0 0 /.12);
+            width: 300px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 1.4rem;
+            color: var(--accent);
+        }
+
+        #estado {
+            margin: 0 0 .8rem 0;
+            font-weight: 600;
+        }
+
+        #msg {
+            margin: 1.2rem 0 0 0;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        .hidden {
+            display: none;
+        }
+        #toast {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            background: var(--accent);
+            color: #fff;
+            padding: .6rem 1rem;
+            border-radius: 8px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all .3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>📢 Tareas</h1>
+        <p id="estado">Conectando…</p>
+        <p id="msg" class="hidden">✔ Se creó una tarea</p>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+
+        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFkbWluaXN0cmF0b3IiLCJuYmYiOjE3NDk5NTI1MDUsImV4cCI6MTc0OTk1NjEwNSwiaXNzIjoiVGFza0FwaSIsImF1ZCI6IlRhc2tBcGlVc2VycyJ9.RzJiaIRU9vkferdAfxV8IVRl1IFiA85ZIuwpbk_Vdd8";
+
+        const estado = document.getElementById("estado");
+        const msg = document.getElementById("msg");
+        const toast = document.getElementById("toast");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/taskhub", { accessTokenFactory: () => token })
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("TaskCreated", () => {
+            msg.classList.remove("hidden");    
+            mostrarToast("Nueva tarea registrada");
+        });
+
+        connection.onreconnecting(() => estado.textContent = "Reconectando…");
+        connection.onreconnected(() => estado.textContent = "Conectado ✅");
+        connection.onclose(() => estado.textContent = "Desconectado ❌");
+
+        async function start() {
+            try {
+                await connection.start();
+                estado.textContent = "Conectado ✅";
+            } catch (e) {
+                estado.textContent = "Error de conexión";
+                console.error(e);
+            }
+        }
+        start();
+
+        function mostrarToast(txt) {
+            toast.textContent = txt;
+            toast.style.opacity = "1";
+            toast.style.transform = "translateY(0)";
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateY(20px)";
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
