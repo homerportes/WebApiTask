@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35806.99 d17.13
+VisualStudioVersion = 17.13.35806.99
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApiTask", "WebApiTask\WebApiTask.csproj", "{3A8AA9B2-6E28-4C3E-A82A-DCC4C3C725C9}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DomainLayer", "DomainLayer\DomainLayer.csproj", "{9D34ECF8-B479-47EA-95B1-5ACE0ADFDD81}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfrastuctureLayer", "InfrastuctureLayer\InfrastuctureLayer.csproj", "{6636B526-C5DF-456B-8F3F-ABD4A72865C0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApiTask.Tests", "WebApiTask.Tests\WebApiTask.Tests.csproj", "{D750CBDE-BD3E-421C-A8F4-60AB46B488C8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{6636B526-C5DF-456B-8F3F-ABD4A72865C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6636B526-C5DF-456B-8F3F-ABD4A72865C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6636B526-C5DF-456B-8F3F-ABD4A72865C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D750CBDE-BD3E-421C-A8F4-60AB46B488C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D750CBDE-BD3E-421C-A8F4-60AB46B488C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D750CBDE-BD3E-421C-A8F4-60AB46B488C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D750CBDE-BD3E-421C-A8F4-60AB46B488C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

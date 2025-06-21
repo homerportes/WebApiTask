@@ -3,6 +3,7 @@
     using System;
     using System.ComponentModel.DataAnnotations;
     using System.ComponentModel.DataAnnotations.Schema;
+    using System.Text.Json.Serialization;
 
     public class Tareas
     {
@@ -23,9 +24,28 @@
         public string? AdditionalData { get; set; } = string.Empty;
 
         [NotMapped]
-        public int DiasRestantes => (DueDate - DateTime.Now).Days;
+        [JsonIgnore]
+        private Func<DateTime> _ahora = () => DateTime.Now;
 
         [NotMapped]
-        public bool EstaVencida => DueDate < DateTime.Now;
+        [JsonIgnore]
+        public Func<DateTime> Ahora
+        {
+            get => _ahora;
+            set => _ahora = value ?? (() => DateTime.Now);
+        }
+
+        public Tareas() { }
+
+        public Tareas(Func<DateTime> ahora)
+        {
+            Ahora = ahora;
+        }
+
+        [NotMapped]
+        public int DiasRestantes => (DueDate - Ahora()).Days;
+
+        [NotMapped]
+        public bool EstaVencida => DueDate < Ahora();
     }
 }

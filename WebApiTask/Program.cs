@@ -32,7 +32,12 @@ builder.Services.AddScoped<ICommonsProcess<Tareas>, TaskRepository>();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<ITaskNotificationService, SignalRTaskNotificationService>();
-builder.Services.AddScoped<ITaskServices, TaskServices>();
+builder.Services.AddScoped<ITaskServices>(sp =>
+{
+    var svc = ActivatorUtilities.CreateInstance<TaskServices>(sp);
+    svc.OnTaskCreated = sp.GetService<Action<Tareas>>();
+    return svc;
+});
 builder.Services.AddSingleton<IReactiveTaskQueueService, ReactiveTaskQueueService>();
 builder.Services.AddScoped<ITareaFactory, TareaFactory>();
 

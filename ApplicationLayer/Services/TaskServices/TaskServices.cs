@@ -21,6 +21,7 @@ namespace ApplicationLayer.Services.TaskServices
         private readonly ITaskNotificationService _notifier;
 
         public ValidarTareaDelegate Validador { get; set; }
+        public Action<Tareas>? OnTaskCreated { get; set; }
 
         public TaskServices(
             ICommonsProcess<Tareas> repo,
@@ -115,6 +116,7 @@ namespace ApplicationLayer.Services.TaskServices
             if (res.Successful)
             {
                 await _notifier.NotifyTaskCreatedAsync(t);
+                OnTaskCreated?.Invoke(t);
             }
             return res;
         }
